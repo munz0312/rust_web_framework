@@ -191,15 +191,18 @@ impl Router {
 
         let request = HttpRequest::new(data.to_string());
 
-        let response = HttpResponse {stream: stream};
 
-        for route in routes {
-            if route.method == request.method &&
-                route.route == request.uri {
 
-                    (route.handler)(request, response);
-                    break;
-                }
+        let matching_route = routes.iter().find(|route| {
+            route.method == request.method && route.route == request.uri
+        });
+
+        if let Some(route) = matching_route {
+            let response = HttpResponse {stream: stream};
+            (route.handler)(request, response);
+        } else {
+            let mut response = HttpResponse {stream: stream};
+            response.send("404 - Page not found".to_string());
         }
     }
 }

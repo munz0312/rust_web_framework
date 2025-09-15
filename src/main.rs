@@ -1,3 +1,5 @@
+use std::fs;
+
 use hello::Router;
 
 fn main() {
@@ -5,7 +7,8 @@ fn main() {
     let mut router = Router::new("127.0.0.1", 7878);
 
     router.get("/home", |req, mut res| {
-        res.send("Home".to_string());
+        let contents = fs::read_to_string("hello.html").unwrap();
+        res.send(contents);
     });
 
     router.post("/about", |req, mut res| {
