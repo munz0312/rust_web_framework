@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, io::{prelude::*, BufReader}, net::TcpStream, sync::{mpsc::{self}, Arc, Mutex}, thread};
+use std::{io::{prelude::*}, net::{TcpListener, TcpStream}, sync::{mpsc::{self}, Arc, Mutex}, thread};
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
@@ -82,102 +82,131 @@ impl Worker {
     }
 }
 
+#[derive(Default)]
 pub struct HttpRequest {
-    pub method: String,
-    pub path: String,
-    pub headers: HashMap<String, String>,
+    method: String,
+    uri: String
 }
 
 impl HttpRequest {
-    pub fn parse(stream: &TcpStream) -> Result<HttpRequest, Box<dyn std::error::Error>> {
-        let buf_reader = BufReader::new(stream);
-        let request_line = buf_reader.lines().next().unwrap().unwrap();
 
-        let parts: Vec<&str> = request_line.split_whitespace().collect();
-        if parts.len() < 3 {
-            return Err("Invalid request line".into());
-        }
+    fn new(request_data: String) -> Self {
 
-        Ok(HttpRequest {
-            method: parts[0].to_string(),
-            path: parts[1].to_string(),
-            headers: HashMap::new(),
-        })
+        if let Some((request_line, _rest)) =
+            request_data.split_once("\r\n") {
+                let segments: Vec<&str> = 
+                    request_line.split_whitespace().collect();
+
+                if segments.len() == 3 {
+                    Self {
+                        method: segments[0].to_string(),
+                        uri: segments[1].to_string()
+                    }
+                } else {
+                    Self::default()
+                }
+            } else {
+                Self::default()
+            }
     }
+
 }
 
 pub struct HttpResponse {
-    pub status_code: u16,
-    pub status_text: String,
-    pub body: String,
+    stream: TcpStream
 }
 
 impl HttpResponse {
-    pub fn new(status_code: u16, status_text: &str, body: String) -> Self {
-        HttpResponse {
-            status_code: status_code,
-            status_text: status_text.to_string(),
-            body,
-        }
-    }
-
-    pub fn to_string(&self) -> String {
-        format!(
-            "HTTP/1.1 {} {}\r\nContent-Length: {}\r\n\r\n{}",
-            self.status_code.to_string(),
-            self.status_text,
-            self.body.len(),
-            self.body
-        )
+    pub fn send(&mut self, output: String) {
+        self.stream.write(
+            format!("HTTP/1.1 200 OK \r\n\r\n{}", output).as_bytes()
+        ).unwrap();
     }
 }
 
-type RouteHandler = Box<dyn Fn(&HttpRequest) -> HttpResponse + Send + Sync>;
+type RouteHandler = fn(HttpRequest, HttpResponse);
 
 pub struct Router {
-    routes: HashMap<(String, String), RouteHandler>, 
+    host: String,
+    port: u16,
+    routes: Vec<Route>, 
 }
 
 impl Router {
-    pub fn new() -> Router {
-        Router {
-            routes: HashMap::new()
+    pub fn new(host: &str, port: u16) -> Self {
+        Self {
+            host: host.to_string(), 
+            port,
+            routes: Vec::new(),
         }
     }
 
 
-    pub fn get<F>(mut self, path: &str, handler: F) -> Self
-    where
-        F: Fn(&HttpRequest) -> HttpResponse + Send + Sync + 'static,
-    {
-        self.routes.insert(
-            ("GET".to_string(), path.to_string()),
-            Box::new(handler)
-        );
-        self
+    pub fn get(&mut self, route: &str, handler: RouteHandler) {
+        let route = Route {
+            method: "GET".to_string(),
+            route: route.to_string(),
+            handler
+        };
+
+        self.routes.push(route);
     }
 
-    pub fn post<F>(mut self, path: &str, handler: F) -> Self
-    where
-        F: Fn(&HttpRequest) -> HttpResponse + Send + Sync + 'static,
-    {
-        self.routes.insert(
-            ("POST".to_string(), path.to_string()),
-            Box::new(handler),
-        );
-        self
+    pub fn post(&mut self, route: &str, handler: RouteHandler) {
+    let route = Route {
+        method: "POST".to_string(),
+        route: route.to_string(),
+        handler
+    };
+
+    self.routes.push(route);
     }
 
-    pub fn handle(&self, request: &HttpRequest) -> HttpResponse {
-        let key = (request.method.clone(), request.path.clone());
-        
-        if let Some(handler) = self.routes.get(&key) {
-            handler(request)
-        } else {
-            let body = fs::read_to_string("404.html")
-                .unwrap_or_else(|_| "404 Not Found".to_string());
-            HttpResponse::new(404, "NOT FOUND", body)
+    pub fn serve(self) {
+        let listener = TcpListener::bind((self.host, self.port)).unwrap();
+
+        let _pool = ThreadPool::new(4);
+
+        for incoming in listener.incoming() {
+
+            match incoming {
+                Ok(stream) => {
+                    //pool.execute(|| {
+                    Self::handle_connection(stream, &self.routes)
+                    //})
+                },
+                Err(_err) => {
+
+                }
+            }
         }
     }
 
+    fn handle_connection(mut stream: TcpStream, routes: &Vec<Route>) {
+        let mut buffer : [u8; 1024] = [0; 1024];
+
+        let _size = stream.read(&mut buffer).unwrap();
+
+        let data = std::str::from_utf8(&buffer).unwrap();
+
+        let request = HttpRequest::new(data.to_string());
+
+        let response = HttpResponse {stream: stream};
+
+        for route in routes {
+            if route.method == request.method &&
+                route.route == request.uri {
+
+                    (route.handler)(request, response);
+                    break;
+                }
+        }
+    }
+}
+
+
+pub struct Route {
+    method: String,
+    route: String,
+    handler: RouteHandler
 }
