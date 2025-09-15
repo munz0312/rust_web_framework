@@ -122,6 +122,12 @@ impl HttpResponse {
             format!("HTTP/1.1 200 OK \r\n\r\n{}", output).as_bytes()
         ).unwrap();
     }
+
+    pub fn error(&mut self, error_msg: String) {
+        self.stream.write(
+            format!("HTTP/1.1 404 Not Found \r\n\r\n{}", error_msg).as_bytes()
+        ).unwrap();
+    }
 }
 
 type RouteHandler = fn(HttpRequest, HttpResponse);

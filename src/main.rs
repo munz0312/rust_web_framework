@@ -17,7 +17,7 @@ fn main() {
 
     router.error(|_req, mut res| {
         let contents = fs::read_to_string("404.html").unwrap();
-        res.send(contents);
+        res.error(contents);
     });
     router.serve();
 
