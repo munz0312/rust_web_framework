@@ -129,7 +129,8 @@ type RouteHandler = fn(HttpRequest, HttpResponse);
 pub struct Router {
     host: String,
     port: u16,
-    routes: Vec<Route>, 
+    routes: Vec<Route>,
+    error_handler: Option<RouteHandler>, 
 }
 
 impl Router {
@@ -138,6 +139,7 @@ impl Router {
             host: host.to_string(), 
             port,
             routes: Vec::new(),
+            error_handler: None,
         }
     }
 
@@ -160,6 +162,11 @@ impl Router {
     };
 
     self.routes.push(route);
+    
+    }
+
+    pub fn error (&mut self, handler: RouteHandler) {
+        self.error_handler = Some(handler);
     }
 
     pub fn serve(self) {
@@ -172,7 +179,7 @@ impl Router {
             match incoming {
                 Ok(stream) => {
                     //pool.execute(|| {
-                    Self::handle_connection(stream, &self.routes)
+                    Self::handle_connection(stream, &self.routes, &self.error_handler)
                     //})
                 },
                 Err(_err) => {
@@ -182,7 +189,7 @@ impl Router {
         }
     }
 
-    fn handle_connection(mut stream: TcpStream, routes: &Vec<Route>) {
+    fn handle_connection(mut stream: TcpStream, routes: &Vec<Route>, error_handler: &Option<RouteHandler>) {
         let mut buffer : [u8; 1024] = [0; 1024];
 
         let _size = stream.read(&mut buffer).unwrap();
@@ -200,9 +207,16 @@ impl Router {
         if let Some(route) = matching_route {
             let response = HttpResponse {stream: stream};
             (route.handler)(request, response);
+
         } else {
             let mut response = HttpResponse {stream: stream};
-            response.send("404 - Page not found".to_string());
+
+            if let Some(handler) = error_handler {
+                (handler)(request, response);
+            } else {
+                response.send("404 - Page not found".to_string())
+            }
+
         }
     }
 }
