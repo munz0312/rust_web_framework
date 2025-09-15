@@ -1,5 +1,5 @@
 use std::{
-    fs, io::prelude::*, net::{TcpListener, TcpStream}, sync::Arc, thread, time::Duration
+    fs, io::prelude::*, net::{TcpListener, TcpStream}, sync::Arc
 };
 use hello::{HttpRequest, HttpResponse, ThreadPool, Router};
 
@@ -20,7 +20,7 @@ fn main() {
         let router = Arc::clone(&router);
         
         pool.execute(move || {
-            handle_connection_v2(stream, router);
+            handle_connection(stream, router);
         });
     }
 
