@@ -27,34 +27,7 @@ fn main() {
     println!("Shutting down.")
 }
 
-fn handle_connection(mut stream: TcpStream) {
-    let request = match HttpRequest::parse(&stream) {
-        Ok(req) => req,
-        Err(_) => {
-            let response = HttpResponse::new(400, "Bad Request", "Invalid request".to_string());
-            stream.write_all(response.to_string().as_bytes()).unwrap();
-            return;
-        }
-    };
-
-    let (status_code, status_text, filename) = match (request.method.as_str(), request.path.as_str()) {
-        ("GET", "/") => (200, "OK", "hello.html"),
-        ("GET", "/sleep") => {
-            thread::sleep(Duration::from_secs(5));
-            (200, "OK", "hello.html")
-        }
-        (_, _) => (400, "NOT FOUND", "404.html")
-    };
-
-    let body = fs::read_to_string(filename).unwrap();
-
-    let response = HttpResponse::new(status_code, status_text, body);
-
-    stream.write_all(response.to_string().as_bytes()).unwrap();
-
-}
-
-fn handle_connection_v2(mut stream: TcpStream, router: Arc<Router>) {
+fn handle_connection(mut stream: TcpStream, router: Arc<Router>) {
 
     let request = match HttpRequest::parse(&stream) {
         Ok(req) => req,
