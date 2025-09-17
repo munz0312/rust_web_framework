@@ -1,1 +1,6 @@
-GET http://127.0.0.1:7878/home
+POST http://127.0.0.1:7878/home
+Content-Type: application/application/json
+
+{
+    "greetings": "Hello"
+}

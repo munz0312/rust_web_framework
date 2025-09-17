@@ -11,14 +11,16 @@ fn main() {
         res.send(contents);
     });
 
-    router.post("/about", |_req, mut res| {
-        res.send("About".to_string());
+    router.post("/home", |req, mut res| {
+        println!("{:?} - {}", req.headers, req.post_body);
+        res.send("Home".to_string());
     });
 
     router.error(|_req, mut res| {
         let contents = fs::read_to_string("404.html").unwrap();
         res.error(contents);
     });
+    
     router.serve();
 
 }

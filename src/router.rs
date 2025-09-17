@@ -1,6 +1,6 @@
-use std::{io::prelude::*, net::{TcpListener, TcpStream}};
+use std::{io::prelude::*, net::{TcpListener, TcpStream}, sync::Arc};
 
-use crate::{HttpRequest, HttpResponse};
+use crate::{HttpRequest, HttpResponse, ThreadPool};
 
 pub type RouteHandler = fn(HttpRequest, HttpResponse);
 
@@ -50,16 +50,24 @@ impl Router {
     pub fn serve(self) {
         let listener = TcpListener::bind((self.host, self.port)).unwrap();
 
-        //let _pool = ThreadPool::new(4);
+        let pool = ThreadPool::new(4);
+
+        let routes_arc = Arc::new(self.routes);
+        let error_arc = Arc::new(self.error_handler);
 
         for incoming in listener.incoming() {
 
             match incoming {
                 Ok(stream) => {
-                    //pool.execute(|| {
-                    Self::handle_connection(stream, &self.routes, &self.error_handler)
-                    //})
+
+                    let routes_clone = routes_arc.clone();
+                    let error_clone = error_arc.clone();
+
+                    pool.execute(|| {
+                        Self::handle_connection(stream, routes_clone, error_clone)
+                    })
                 },
+                
                 Err(_err) => {
 
                 }
@@ -67,7 +75,7 @@ impl Router {
         }
     }
 
-    fn handle_connection(mut stream: TcpStream, routes: &Vec<Route>, error_handler: &Option<RouteHandler>) {
+    fn handle_connection(mut stream: TcpStream, routes: Arc<Vec<Route>>, error_handler: Arc<Option<RouteHandler>>) {
         let mut buffer : [u8; 1024] = [0; 1024];
 
         let _size = stream.read(&mut buffer).unwrap();
@@ -89,7 +97,7 @@ impl Router {
         } else {
             let mut response = HttpResponse {stream: stream};
 
-            if let Some(handler) = error_handler {
+            if let Some(handler) = error_handler.as_ref() {
                 (handler)(request, response);
             } else {
                 response.send("404 - Page not found".to_string())
