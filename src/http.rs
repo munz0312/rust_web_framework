@@ -52,9 +52,11 @@ impl HttpRequest {
         }
     }
 
+    // to do
     pub fn parse_uri(uri: &str) -> (String, HashMap<String, String>) {
 
         if let Some((path, query_string)) = uri.split_once("?") {
+
             (path.to_string(), HashMap::new())
         } else {
             (uri.to_string(), HashMap::new())
