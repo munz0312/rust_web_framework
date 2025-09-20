@@ -6,6 +6,7 @@ pub struct HttpRequest {
     pub uri: String,
     pub headers: std::collections::HashMap<String, String>,
     pub post_body: String,
+    pub query_params: HashMap<String, String>,
 }
 
 impl HttpRequest {
@@ -23,12 +24,14 @@ impl HttpRequest {
                     let mut post_body = String::new();
 
                     Self::extract(rest, &mut headers, &mut post_body);
+                    let (path, query_params) = Self::parse_uri(segments[1]);
                     
                     Self {
                         method: segments[0].to_string(),
-                        uri: segments[1].to_string(),
+                        uri: path,
                         headers,
-                        post_body
+                        post_body,
+                        query_params,
                     }
                 } else {
                     Self::default()
@@ -54,12 +57,16 @@ impl HttpRequest {
 
     // to do
     pub fn parse_uri(uri: &str) -> (String, HashMap<String, String>) {
-
+        let mut h: HashMap<String, String> = HashMap::new();
         if let Some((path, query_string)) = uri.split_once("?") {
-
-            (path.to_string(), HashMap::new())
+            for query in query_string.split('&') {
+                if let Some((key, value)) = query.split_once('=') {
+                    h.insert(key.to_string(), value.to_string());
+                }
+            }
+            (path.to_string(), h)      
         } else {
-            (uri.to_string(), HashMap::new())
+            (uri.to_string(), h)
         }
     }
 
