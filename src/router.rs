@@ -23,24 +23,38 @@ impl Router {
 
 
     pub fn get(&mut self, route: &str, handler: RouteHandler) {
+        let path_param = Self::parse_path_param(route);
         let route = Route {
             method: "GET".to_string(),
             route: route.to_string(),
-            handler
+            handler,
+            path_param
         };
 
         self.routes.push(route);
     }
 
     pub fn post(&mut self, route: &str, handler: RouteHandler) {
-    let route = Route {
-        method: "POST".to_string(),
-        route: route.to_string(),
-        handler
-    };
+        let path_param = Self::parse_path_param(route);
+        let route = Route {
+            method: "POST".to_string(),
+            route: route.to_string(),
+            handler,
+            path_param
+        };
 
-    self.routes.push(route);
+        self.routes.push(route);
     
+    }
+
+    fn parse_path_param(uri: &str) -> Option<String> {
+        
+        if let Some((_, param_name)) = uri.split_once(':') {
+            println!("{}", param_name);
+            Some(param_name.to_string())
+        } else {
+            None
+        }
     }
 
     pub fn error (&mut self, handler: RouteHandler) {
@@ -84,8 +98,6 @@ impl Router {
 
         let request = HttpRequest::new(data.to_string());
 
-
-
         let matching_route = routes.iter().find(|route| {
             route.method == request.method && route.route == request.uri
         });
@@ -111,5 +123,6 @@ impl Router {
 pub struct Route {
     method: String,
     route: String,
-    handler: RouteHandler
+    handler: RouteHandler,
+    path_param: Option<String>
 }

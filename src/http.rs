@@ -7,6 +7,7 @@ pub struct HttpRequest {
     pub headers: std::collections::HashMap<String, String>,
     pub post_body: String,
     pub query_params: HashMap<String, String>,
+    pub path_params: HashMap<String, String>,
 }
 
 impl HttpRequest {
@@ -25,6 +26,10 @@ impl HttpRequest {
 
                     Self::extract(rest, &mut headers, &mut post_body);
                     let (path, query_params) = Self::parse_uri(segments[1]);
+
+                    // to do: extract stuff from uri like localhost:8080/user/:id
+                    // users define route router.get("/user/:id")
+                    // store in a new field?
                     
                     Self {
                         method: segments[0].to_string(),
@@ -32,6 +37,7 @@ impl HttpRequest {
                         headers,
                         post_body,
                         query_params,
+                        path_params: HashMap::new(),
                     }
                 } else {
                     Self::default()
@@ -55,7 +61,6 @@ impl HttpRequest {
         }
     }
 
-    // to do
     pub fn parse_uri(uri: &str) -> (String, HashMap<String, String>) {
         let mut h: HashMap<String, String> = HashMap::new();
         if let Some((path, query_string)) = uri.split_once("?") {
