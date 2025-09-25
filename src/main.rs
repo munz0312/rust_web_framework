@@ -16,8 +16,8 @@ fn main() {
         res.send("Home".to_string());
     });
 
-    router.get("/user/:id", |req, mut res| {
-        println!("looking for user with id: {:?}", req.path_params.get("id"));
+    router.get("/user", |req, mut res| {
+        println!("looking for user with id: {}", req.get_query_param_as::<u32>("id").unwrap());
         res.send("Works!".to_string());
     });
 

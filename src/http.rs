@@ -21,15 +21,12 @@ impl HttpRequest {
 
                 if segments.len() == 3 {
 
-                    let mut headers: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+                    let mut headers: HashMap<String, String> = HashMap::new();
                     let mut post_body = String::new();
 
                     Self::extract(rest, &mut headers, &mut post_body);
                     let (path, query_params) = Self::parse_uri(segments[1]);
 
-                    // to do: extract stuff from uri like localhost:8080/user/:id
-                    // users define route router.get("/user/:id")
-                    
                     Self {
                         method: segments[0].to_string(),
                         uri: path,
@@ -85,6 +82,17 @@ impl HttpRequest {
        self.path_params.get(key)?.parse().ok()
     }
 
+    pub fn get_query_param(&self, key: &str) -> Option<&String> {
+        self.query_params.get(key)
+    }
+
+    pub fn get_query_param_as<T>(&self, key: &str) -> Option<T> 
+    where
+        T: std::str::FromStr
+    {
+       self.query_params.get(key)?.parse().ok()
+    }
+
 }
 
 pub struct HttpResponse {
@@ -92,12 +100,14 @@ pub struct HttpResponse {
 }
 
 impl HttpResponse {
+    /// Send a response with status 200 OK
     pub fn send(&mut self, output: String) {
         self.stream.write(
             format!("HTTP/1.1 200 OK \r\n\r\n{}", output).as_bytes()
         ).unwrap();
     }
 
+    /// Send a response with status 404 Not Found
     pub fn error(&mut self, error_msg: String) {
         self.stream.write(
             format!("HTTP/1.1 404 Not Found \r\n\r\n{}", error_msg).as_bytes()

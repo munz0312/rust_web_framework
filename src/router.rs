@@ -21,13 +21,23 @@ impl Router {
         }
     }
 
-
+    /// Defines a GET route.
+    /// 
+    /// `route` is the URI for the route.
+    /// 
+    /// `handler` is the closure that will run when the route is accessed
     pub fn get(&mut self, route: &str, handler: RouteHandler) {
+
         let route = Route::new("GET".to_string(), route.to_string(), handler);
 
         self.routes.push(route);
     }
 
+    /// Defines a POST route.
+    /// 
+    /// `route` is the URI for the route.
+    /// 
+    /// `handler` is the closure that will run when the route is accessed.
     pub fn post(&mut self, route: &str, handler: RouteHandler) {
         let route = Route::new("POST".to_string(), route.to_string(), handler);
 
@@ -35,10 +45,12 @@ impl Router {
     
     }
 
+    /// Sets the closure to run when attempting to access not found routes.
     pub fn error (&mut self, handler: RouteHandler) {
         self.error_handler = Some(handler);
     }
 
+    /// Starts the web server!
     pub fn serve(self) {
         let listener = TcpListener::bind((self.host, self.port)).unwrap();
 
