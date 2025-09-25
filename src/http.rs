@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash, io::prelude::*, net::TcpStream};
+use std::{collections::HashMap, io::prelude::*, net::TcpStream};
 
 #[derive(Default)]
 pub struct HttpRequest {
@@ -72,6 +72,17 @@ impl HttpRequest {
         } else {
             (uri.to_string(), h)
         }
+    }
+
+    pub fn get_path_param(&self, key: &str) -> Option<&String> {
+        self.path_params.get(key)
+    }
+
+    pub fn get_path_param_as<T>(&self, key: &str) -> Option<T> 
+    where
+        T: std::str::FromStr
+    {
+       self.path_params.get(key)?.parse().ok()
     }
 
 }

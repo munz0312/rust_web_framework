@@ -16,6 +16,11 @@ fn main() {
         res.send("Home".to_string());
     });
 
+    router.get("/user/:id", |req, mut res| {
+        println!("looking for user with id: {:?}", req.path_params.get("id"));
+        res.send("Works!".to_string());
+    });
+
     router.error(|_req, mut res| {
         let contents = fs::read_to_string("404.html").unwrap();
         res.error(contents);
