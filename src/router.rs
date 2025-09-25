@@ -1,4 +1,4 @@
-use std::{io::prelude::*, net::{TcpListener, TcpStream}, sync::Arc};
+use std::{collections::HashMap, io::prelude::*, net::{TcpListener, TcpStream}, sync::Arc};
 
 use crate::{HttpRequest, HttpResponse, ThreadPool};
 
@@ -23,38 +23,16 @@ impl Router {
 
 
     pub fn get(&mut self, route: &str, handler: RouteHandler) {
-        let path_param = Self::parse_path_param(route);
-        let route = Route {
-            method: "GET".to_string(),
-            route: route.to_string(),
-            handler,
-            path_param
-        };
+        let route = Route::new("GET".to_string(), route.to_string(), handler);
 
         self.routes.push(route);
     }
 
     pub fn post(&mut self, route: &str, handler: RouteHandler) {
-        let path_param = Self::parse_path_param(route);
-        let route = Route {
-            method: "POST".to_string(),
-            route: route.to_string(),
-            handler,
-            path_param
-        };
+        let route = Route::new("POST".to_string(), route.to_string(), handler);
 
         self.routes.push(route);
     
-    }
-
-    fn parse_path_param(uri: &str) -> Option<String> {
-        
-        if let Some((_, param_name)) = uri.split_once(':') {
-            println!("{}", param_name);
-            Some(param_name.to_string())
-        } else {
-            None
-        }
     }
 
     pub fn error (&mut self, handler: RouteHandler) {
@@ -96,10 +74,19 @@ impl Router {
 
         let data = std::str::from_utf8(&buffer).unwrap();
 
-        let request = HttpRequest::new(data.to_string());
+        let  mut request = HttpRequest::new(data.to_string());
 
-        let matching_route = routes.iter().find(|route| {
-            route.method == request.method && route.route == request.uri
+        let matching_route = routes.iter().find_map(|route| {
+             if route.method == request.method {
+                if let Some(path_params) = route.matches(&request.uri) {
+                    request.path_params = path_params;
+                    Some(route)
+                } else {
+                    None
+                }
+             } else {
+                None
+             }
         });
 
         if let Some(route) = matching_route {
@@ -124,5 +111,61 @@ pub struct Route {
     method: String,
     route: String,
     handler: RouteHandler,
-    path_param: Option<String>
+    route_segments: Vec<RouteSegment>,
+}
+
+#[derive(Clone)]
+pub enum RouteSegment {
+    Static(String),
+    Parameter(String),
+}
+
+impl Route {
+    fn new(method: String, route: String, handler: RouteHandler) -> Self {
+        let route_segments = Self::parse_route(&route);
+        Route {
+            method,
+            route,
+            handler,
+            route_segments,
+        }
+    }
+
+    fn parse_route(route: &str) -> Vec<RouteSegment> {
+        route.split('/')
+            .filter(|segment| !segment.is_empty())
+            .map(|segment| {
+            if segment.starts_with(':') {
+                RouteSegment::Parameter(segment[1..].to_string())
+            } else {
+                RouteSegment::Static(segment.to_string())
+            }
+        }).collect()
+    }
+
+    fn matches(&self, path: &str) -> Option<HashMap<String, String>> {
+        let path_segments: Vec<_> = path.split('/')
+            .filter(|segment| !segment.is_empty())
+            .collect();
+
+        if path_segments.len() != self.route_segments.len() {
+            return None
+        }
+
+        let mut params = HashMap::new();
+
+        for (route_seg, path_seg) in self.route_segments.iter().zip(path_segments.iter()) {
+            match route_seg {
+                RouteSegment::Static(static_part) => {
+                    if static_part != path_seg {
+                        return None;
+                    }
+                }
+                RouteSegment::Parameter(param) => {
+                    params.insert(param.clone(), path_seg.to_string());
+                }
+            }
+        }
+        Some(params)
+    }
 }

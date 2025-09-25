@@ -29,7 +29,6 @@ impl HttpRequest {
 
                     // to do: extract stuff from uri like localhost:8080/user/:id
                     // users define route router.get("/user/:id")
-                    // store in a new field?
                     
                     Self {
                         method: segments[0].to_string(),
